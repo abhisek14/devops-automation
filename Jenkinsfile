@@ -3,37 +3,47 @@ pipeline {
     tools{
         maven 'maven3'
     }
+    
+    environment {
+        DOCKERHUB_CRED = credentials('docker-hub') // Assuming dockerhub-pwd is the credential ID
+    }
     stages{
         stage('Build Maven'){
             steps{
                 checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/abhisek14/devops-automation.git']]])
-                sh 'mvn clean install'
+                bat 'mvn -f pom.xml clean install'
             }
         }
         stage('Build docker image'){
             steps{
                 script{
-                    sh 'docker build -t javatechie/devops-integration .'
+                    bat 'docker build -t abhisek147/devops-integration .'
                 }
             }
         }
-        stage('Push image to Hub'){
+stage('Push image to Hub'){
             steps{
                 script{
-                   withCredentials([string(credentialsId: 'dockerhub-pwd', variable: 'dockerhubpwd')]) {
-                   sh 'docker login -u javatechie -p ${dockerhubpwd}'
+                   withDockerRegistry(credentialsId: 'docker-hub', url: 'https://index.docker.io/v1/') {
+  
 
-}
-                   sh 'docker push javatechie/devops-integration'
+
+
+                   bat 'docker push abhisek147/devops-integration'
                 }
             }
         }
+}
+       
         stage('Deploy to k8s'){
             steps{
                 script{
-                    kubernetesDeploy (configs: 'deploymentservice.yaml',kubeconfigId: 'k8sconfigpwd')
+                    withKubeConfig(caCertificate: '', clusterName: 'minikube', contextName: '', credentialsId: 'K8S', namespace: '', restrictKubeConfigAccess: false, serverUrl: '') {
+    bat 'kubectl apply -f deploymentservice.yaml'
+
                 }
             }
         }
     }
+}
 }
